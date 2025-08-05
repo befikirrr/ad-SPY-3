@@ -7,7 +7,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        'dark-purple': '#2a0d45',
+        'background': '#0D1117',
+        'accent': '#58A6FF',
+        'card': 'rgba(255, 255, 255, 0.05)',
+        'border': 'rgba(255, 255, 255, 0.1)',
       }
     },
   },
