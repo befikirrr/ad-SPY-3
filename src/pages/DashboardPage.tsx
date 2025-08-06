@@ -49,7 +49,7 @@ export const DashboardPage = ({ session }: { session: Session }) => {
 
       {/* Ad Grid */}
       <main>
-        <AdGrid searchTerm={searchTerm} />
+        <AdGrid searchTerm={searchTerm} session={session} />
       </main>
     </div>
   )

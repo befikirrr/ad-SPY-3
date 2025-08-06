@@ -16,7 +16,6 @@ const AdMetric = ({ label, value, icon }: AdMetricProps) => (
   </div>
 );
 
-// Updated type to directly match the DB schema and handle potential null values
 export type AdFromSupabase = {
   id: number;
   advertiser: string;
@@ -28,22 +27,48 @@ export type AdFromSupabase = {
   impressions: number | null;
 };
 
-export const AdCard = ({ ad }: { ad: AdFromSupabase }) => {
+type AdCardProps = {
+    ad: AdFromSupabase;
+    isSaved: boolean;
+    onSaveToggle: (adId: number, isCurrentlySaved: boolean) => void;
+    onCardClick: (ad: AdFromSupabase) => void;
+}
+
+export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) => {
   const spend = ad.spend ?? 0;
   const revenue = ad.revenue ?? 0;
   const roi = spend > 0 ? ((revenue - spend) / spend) * 100 : 0;
 
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent the modal from opening when saving
+    onSaveToggle(ad.id, isSaved);
+  };
+
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden backdrop-blur-md transition-all hover:border-accent/50 hover:shadow-xl hover:shadow-accent/5">
-      {/* Ad Creative */}
-      <img 
-        src={ad.ad_creative_url ?? 'https://via.placeholder.com/400x200?text=No+Creative'} 
-        alt="Ad Creative" 
-        className="w-full h-48 object-cover bg-gray-800" 
-      />
+    <div 
+        className="bg-card border border-border rounded-2xl overflow-hidden backdrop-blur-md transition-all hover:border-accent/50 hover:shadow-xl hover:shadow-accent/5 cursor-pointer"
+        onClick={() => onCardClick(ad)}
+    >
+      <div className="relative">
+        <img 
+          src={ad.ad_creative_url ?? 'https://via.placeholder.com/400x200?text=No+Creative'} 
+          alt="Ad Creative" 
+          className="w-full h-48 object-cover bg-gray-800" 
+        />
+        <button 
+            onClick={handleSaveClick}
+            className={`absolute top-3 right-3 text-sm py-1 px-3 rounded-full transition-colors
+                ${isSaved 
+                    ? 'bg-accent/80 text-white' 
+                    : 'bg-black/50 text-gray-300 hover:bg-accent/80 hover:text-white'
+                }`
+            }
+        >
+            {isSaved ? '★ Saved' : '☆ Save'}
+        </button>
+      </div>
 
       <div className="p-4">
-        {/* Advertiser Info */}
         <div className="flex items-center mb-4">
           <img 
             src={ad.advertiser_avatar ?? 'https://i.pravatar.cc/40'} 
@@ -55,13 +80,9 @@ export const AdCard = ({ ad }: { ad: AdFromSupabase }) => {
             <div className="text-xs text-gray-500">Sponsored</div>
           </div>
         </div>
-
-        {/* Ad Copy */}
-        <p className="text-gray-300 text-sm mb-6 leading-relaxed">
+        <p className="text-gray-300 text-sm mb-6 leading-relaxed line-clamp-3">
           {ad.ad_copy ?? 'No ad copy available.'}
         </p>
-
-        {/* Performance Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 border-t border-border pt-4">
           <AdMetric label="Spend" value={`$${(spend / 1000).toFixed(1)}k`} icon="💸" />
           <AdMetric label="Revenue" value={`$${(revenue / 1000).toFixed(1)}k`} icon="💰" />
