@@ -7,7 +7,7 @@ import { Session } from '@supabase/supabase-js';
 
 type SortOption = 'created_at' | 'spend' | 'revenue' | 'roi';
 
-export const AdGrid = ({ searchTerm, session }: { searchTerm: string, session: Session }) => {
+export const AdGrid = ({ searchTerm, session, roiMin = 0, dateFrom, dateTo }: { searchTerm: string, session: Session, roiMin?: number, dateFrom?: string, dateTo?: string }) => {
   const [ads, setAds] = useState<AdFromSupabase[]>([]);
   const [savedAdIds, setSavedAdIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -32,12 +32,7 @@ export const AdGrid = ({ searchTerm, session }: { searchTerm: string, session: S
 
       // Fetch saved ads for the current user
       const { data: savedAdsData, error: savedAdsError } = await supabase.from('saved_ads').select('ad_id').eq('user_id', session.user.id);
-      if (savedAdsError) {
-        console.error('Error fetching saved ads:', savedAdsError);
-        // Not a fatal error, so we don't set the main error state
-      } else {
-        setSavedAdIds(new Set(savedAdsData.map(r => r.ad_id)));
-      }
+      if (!savedAdsError && savedAdsData) setSavedAdIds(new Set(savedAdsData.map(r => r.ad_id)));
 
       setLoading(false);
     };
@@ -47,52 +42,46 @@ export const AdGrid = ({ searchTerm, session }: { searchTerm: string, session: S
 
   const handleSaveToggle = async (adId: number, isCurrentlySaved: boolean) => {
     if (isCurrentlySaved) {
-      // Unsave the ad
       const { error } = await supabase.from('saved_ads').delete().match({ user_id: session.user.id, ad_id: adId });
-      if (error) {
-        console.error('Error unsaving ad:', error);
-      } else {
-        setSavedAdIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(adId);
-          return newSet;
-        });
-      }
+      if (!error) setSavedAdIds(prev => { const s = new Set(prev); s.delete(adId); return s; });
     } else {
-      // Save the ad
       const { error } = await supabase.from('saved_ads').insert({ user_id: session.user.id, ad_id: adId });
-      if (error) {
-        console.error('Error saving ad:', error);
-      } else {
-        setSavedAdIds(prev => new Set(prev).add(adId));
-      }
+      if (!error) setSavedAdIds(prev => new Set(prev).add(adId));
     }
   };
   
   const filteredAndSortedAds = useMemo(() => {
     let processedAds = [...ads];
-    // Filtering
+
+    // Filter by search term
     if (searchTerm) {
-        processedAds = processedAds.filter(ad => {
-            const lowerCaseSearchTerm = searchTerm.toLowerCase();
-            return (
-              (ad.advertiser?.toLowerCase() ?? '').includes(lowerCaseSearchTerm) ||
-              (ad.ad_copy?.toLowerCase() ?? '').includes(lowerCaseSearchTerm)
-            );
-        });
+      const q = searchTerm.toLowerCase();
+      processedAds = processedAds.filter(ad => (ad.advertiser?.toLowerCase() ?? '').includes(q) || (ad.ad_copy?.toLowerCase() ?? '').includes(q));
     }
+
+    // Filter by ROI minimum
+    if (roiMin && roiMin > 0) {
+      processedAds = processedAds.filter(ad => {
+        const spend = ad.spend ?? 0; const revenue = ad.revenue ?? 0; const roiPct = spend > 0 ? ((revenue - spend) / spend) * 100 : 0;
+        return roiPct >= roiMin;
+      });
+    }
+
+    // TODO: dateFrom/dateTo filter once metrics table is present
+
     // Sorting
     if (sortOption === 'roi') {
-      return processedAds.sort((a, b) => {
+      processedAds.sort((a, b) => {
         const roiA = a.spend ? ((a.revenue ?? 0) - a.spend) / a.spend : 0;
         const roiB = b.spend ? ((b.revenue ?? 0) - b.spend) / b.spend : 0;
         return roiB - roiA;
       });
     } else if (sortOption === 'spend' || sortOption === 'revenue') {
-        return processedAds.sort((a, b) => (b[sortOption] ?? 0) - (a[sortOption] ?? 0));
+      processedAds.sort((a, b) => (b[sortOption] ?? 0) - (a[sortOption] ?? 0));
     }
-    return processedAds; // Default is 'created_at' which is pre-sorted
-  }, [ads, searchTerm, sortOption]);
+
+    return processedAds;
+  }, [ads, searchTerm, sortOption, roiMin]);
 
   return (
     <>
@@ -101,11 +90,7 @@ export const AdGrid = ({ searchTerm, session }: { searchTerm: string, session: S
           <h3 className="text-2xl font-bold">Top Performing Ads</h3>
           <div className="flex items-center gap-4">
             <p className="text-gray-400 text-sm">{filteredAndSortedAds.length} ads found</p>
-            <select
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as SortOption)}
-              className="bg-card border border-border rounded-md py-2 px-3 text-white"
-            >
+            <select value={sortOption} onChange={(e) => setSortOption(e.target.value as SortOption)} className="bg-card border border-border rounded-md py-2 px-3 text-white">
               <option value="created_at">Sort by: Newest</option>
               <option value="spend">Sort by: Spend</option>
               <option value="revenue">Sort by: Revenue</option>

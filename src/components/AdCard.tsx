@@ -29,9 +29,9 @@ export type AdFromSupabase = {
 
 type AdCardProps = {
     ad: AdFromSupabase;
-    isSaved: boolean;
-    onSaveToggle: (adId: number, isCurrentlySaved: boolean) => void;
-    onCardClick: (ad: AdFromSupabase) => void;
+    isSaved?: boolean;
+    onSaveToggle?: (adId: number, isCurrentlySaved: boolean) => void;
+    onCardClick?: (ad: AdFromSupabase) => void;
 }
 
 export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) => {
@@ -40,14 +40,18 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
   const roi = spend > 0 ? ((revenue - spend) / spend) * 100 : 0;
 
   const handleSaveClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent the modal from opening when saving
-    onSaveToggle(ad.id, isSaved);
+    e.stopPropagation();
+    if (onSaveToggle) {
+        onSaveToggle(ad.id, !!isSaved);
+    }
   };
+  
+  const cardProps = onCardClick ? { onClick: () => onCardClick(ad), className: "cursor-pointer" } : {};
 
   return (
     <div 
-        className="bg-card border border-border rounded-2xl overflow-hidden backdrop-blur-md transition-all hover:border-accent/50 hover:shadow-xl hover:shadow-accent/5 cursor-pointer"
-        onClick={() => onCardClick(ad)}
+        className="bg-card border border-border rounded-2xl overflow-hidden backdrop-blur-md transition-all hover:border-accent/50 hover:shadow-xl hover:shadow-accent/5"
+        {...cardProps}
     >
       <div className="relative">
         <img 
@@ -55,17 +59,19 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
           alt="Ad Creative" 
           className="w-full h-48 object-cover bg-gray-800" 
         />
-        <button 
-            onClick={handleSaveClick}
-            className={`absolute top-3 right-3 text-sm py-1 px-3 rounded-full transition-colors
-                ${isSaved 
-                    ? 'bg-accent/80 text-white' 
-                    : 'bg-black/50 text-gray-300 hover:bg-accent/80 hover:text-white'
-                }`
-            }
-        >
-            {isSaved ? '★ Saved' : '☆ Save'}
-        </button>
+        {onSaveToggle && (
+            <button 
+                onClick={handleSaveClick}
+                className={`absolute top-3 right-3 text-sm py-1 px-3 rounded-full transition-colors
+                    ${isSaved 
+                        ? 'bg-accent/80 text-white' 
+                        : 'bg-black/50 text-gray-300 hover:bg-accent/80 hover:text-white'
+                    }`
+                }
+            >
+                {isSaved ? '★ Saved' : '☆ Save'}
+            </button>
+        )}
       </div>
 
       <div className="p-4">
