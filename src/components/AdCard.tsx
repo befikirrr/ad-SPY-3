@@ -25,6 +25,10 @@ export type AdFromSupabase = {
   spend: number | null;
   revenue: number | null;
   impressions: number | null;
+  // optional fields from scraping/ingestion
+  source?: string | null;
+  search_keyword?: string | null;
+  scraped_at?: string | null;
 };
 
 type AdCardProps = {
@@ -48,6 +52,8 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
   
   const cardProps = onCardClick ? { onClick: () => onCardClick(ad), className: "cursor-pointer" } : {};
 
+  const scrapedLabel = ad.source === 'scraped' ? (ad.search_keyword ? `scraped: ${ad.search_keyword}` : 'scraped') : undefined;
+
   return (
     <div 
         className="bg-card border border-border rounded-2xl overflow-hidden backdrop-blur-md transition-all hover:border-accent/50 hover:shadow-xl hover:shadow-accent/5"
@@ -69,7 +75,7 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
                     }`
                 }
             >
-                {isSaved ? '★ Saved' : '☆ Save'}
+                {isSaved ? '\u2605 Saved' : '\u2606 Save'}
             </button>
         )}
       </div>
@@ -86,13 +92,16 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
             <div className="text-xs text-gray-500">Sponsored</div>
           </div>
         </div>
-        <p className="text-gray-300 text-sm mb-6 leading-relaxed line-clamp-3">
+        <p className="text-gray-300 text-sm mb-4 leading-relaxed line-clamp-3">
           {ad.ad_copy ?? 'No ad copy available.'}
         </p>
+        {scrapedLabel && (
+          <div className="text-xs text-gray-400 mb-4">{scrapedLabel}</div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 border-t border-border pt-4">
-          <AdMetric label="Spend" value={`$${(spend / 1000).toFixed(1)}k`} icon="💸" />
-          <AdMetric label="Revenue" value={`$${(revenue / 1000).toFixed(1)}k`} icon="💰" />
-          <AdMetric label="ROI" value={`${roi.toFixed(0)}%`} icon={roi > 0 ? '📈' : '📉'} />
+          <AdMetric label="Spend" value={`$${(spend / 1000).toFixed(1)}k`} icon="\ud83d\udcb8" />
+          <AdMetric label="Revenue" value={`$${(revenue / 1000).toFixed(1)}k`} icon="\ud83d\udcb0" />
+          <AdMetric label="ROI" value={`${roi.toFixed(0)}%`} icon={roi > 0 ? '\ud83d\udcc8' : '\ud83d\udcc9'} />
         </div>
       </div>
     </div>

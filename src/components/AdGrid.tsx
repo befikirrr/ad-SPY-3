@@ -31,8 +31,8 @@ export const AdGrid = ({ searchTerm, session, roiMin = 0, dateFrom, dateTo }: { 
       setAds(adsData as AdFromSupabase[]);
 
       // Fetch saved ads for the current user
-      const { data: savedAdsData, error: savedAdsError } = await supabase.from('saved_ads').select('ad_id').eq('user_id', session.user.id);
-      if (!savedAdsError && savedAdsData) setSavedAdIds(new Set(savedAdsData.map(r => r.ad_id)));
+      const { data: savedAdsData } = await supabase.from('saved_ads').select('ad_id').eq('user_id', session.user.id);
+      if (savedAdsData) setSavedAdIds(new Set(savedAdsData.map(r => r.ad_id)));
 
       setLoading(false);
     };
@@ -53,10 +53,14 @@ export const AdGrid = ({ searchTerm, session, roiMin = 0, dateFrom, dateTo }: { 
   const filteredAndSortedAds = useMemo(() => {
     let processedAds = [...ads];
 
-    // Filter by search term
+    // Filter by search term (advertiser, ad_copy, and search_keyword if present)
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
-      processedAds = processedAds.filter(ad => (ad.advertiser?.toLowerCase() ?? '').includes(q) || (ad.ad_copy?.toLowerCase() ?? '').includes(q));
+      processedAds = processedAds.filter(ad =>
+        (ad.advertiser?.toLowerCase() ?? '').includes(q) ||
+        (ad.ad_copy?.toLowerCase() ?? '').includes(q) ||
+        ((ad as any).search_keyword?.toLowerCase?.() ?? '').includes(q)
+      );
     }
 
     // Filter by ROI minimum

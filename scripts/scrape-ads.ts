@@ -43,23 +43,28 @@ async function scrape(keyword: string) {
   const cards = page.locator('[data-ad-preview="1"], div.x1lliihq.x1n2onr6')
   const count = await cards.count()
 
+  const seen = new Set<string>()
   const records: Array<{advertiser: string; ad_copy: string | null; ad_creative_url: string | null;}> = []
 
-  for (let i = 0; i < Math.min(count, 30); i++) {
+  for (let i = 0; i < Math.min(count, 40); i++) {
     const card = cards.nth(i)
     const advertiser = (await card.locator('a[role="link"]').first().innerText().catch(()=>null)) || 'Unknown'
     const adCopy = await card.locator('div[dir="auto"]').first().innerText().catch(()=>null)
     const img = await card.locator('img').first().getAttribute('src').catch(()=>null)
+
+    const key = `${(advertiser||'').toLowerCase()}::${(adCopy||'').slice(0,200).toLowerCase()}`
+    if (seen.has(key)) continue
+    seen.add(key)
 
     records.push({ advertiser, ad_copy: adCopy, ad_creative_url: img })
   }
 
   await browser.close()
 
-  // Insert into Supabase `ads` (dedupe naive by advertiser+copy)
+  // Insert into Supabase `ads` (include search_keyword & source)
   for (const r of records) {
     if (!r.advertiser && !r.ad_copy) continue
-    await supabase.from('ads').insert({
+    const { error } = await supabase.from('ads').insert({
       advertiser: r.advertiser,
       advertiser_avatar: null,
       ad_creative_url: r.ad_creative_url,
@@ -67,9 +72,10 @@ async function scrape(keyword: string) {
       spend: null,
       revenue: null,
       impressions: null,
-    }).then(({ error }) => {
-      if (error) console.error('Insert error:', error.message)
+      source: 'scraped',
+      search_keyword: keyword,
     })
+    if (error) console.error('Insert error:', error.message)
   }
 
   console.log(`Inserted ~${records.length} scraped ads for keyword: ${keyword}`)
