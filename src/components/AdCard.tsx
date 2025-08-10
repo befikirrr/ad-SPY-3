@@ -75,7 +75,7 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
                     }`
                 }
             >
-                {isSaved ? '\u2605 Saved' : '\u2606 Save'}
+                {isSaved ? '★ Saved' : '☆ Save'}
             </button>
         )}
       </div>
@@ -99,9 +99,9 @@ export const AdCard = ({ ad, isSaved, onSaveToggle, onCardClick }: AdCardProps) 
           <div className="text-xs text-gray-400 mb-4">{scrapedLabel}</div>
         )}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2 border-t border-border pt-4">
-          <AdMetric label="Spend" value={`$${(spend / 1000).toFixed(1)}k`} icon="\ud83d\udcb8" />
-          <AdMetric label="Revenue" value={`$${(revenue / 1000).toFixed(1)}k`} icon="\ud83d\udcb0" />
-          <AdMetric label="ROI" value={`${roi.toFixed(0)}%`} icon={roi > 0 ? '\ud83d\udcc8' : '\ud83d\udcc9'} />
+          <AdMetric label="Spend" value={`$${(spend / 1000).toFixed(1)}k`} icon="💸" />
+          <AdMetric label="Revenue" value={`$${(revenue / 1000).toFixed(1)}k`} icon="💰" />
+          <AdMetric label="ROI" value={`${roi.toFixed(0)}%`} icon={roi > 0 ? '📈' : '📉'} />
         </div>
       </div>
     </div>

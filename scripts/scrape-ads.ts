@@ -16,31 +16,34 @@ async function scrape(keyword: string) {
   const browser = await chromium.launch({ headless: true })
   const context = await browser.newContext({
     viewport: { width: 1366, height: 900 },
+    locale: 'en-US',
+    userAgent:
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118 Safari/537.36',
   })
   const page = await context.newPage()
 
   const url = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=US&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered`;
-  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 })
 
   // Accept cookies prompt if present
   try {
-    const accept = page.locator('text=Only allow essential cookies')
-    if (await accept.isVisible({ timeout: 2000 }).catch(()=>false)) {
+    const accept = page.locator('text=Only allow essential cookies,Allow all cookies').first()
+    if (await accept.isVisible({ timeout: 3000 }).catch(()=>false)) {
       await accept.click()
     }
   } catch {}
 
-  // Wait for results container
-  await page.waitForTimeout(4000)
+  // Let content render
+  await page.waitForTimeout(5000)
 
   // Scroll to load more
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     await page.mouse.wheel(0, 2000)
-    await page.waitForTimeout(1500)
+    await page.waitForTimeout(1200)
   }
 
-  // Basic extraction: cards contain advertiser name, ad copy snippet, and image thumbs
-  const cards = page.locator('[data-ad-preview="1"], div.x1lliihq.x1n2onr6')
+  // Card locator (best-effort – Facebook DOM is dynamic)
+  const cards = page.locator('[data-ad-preview="1"], div[role="article"]').filter({ has: page.locator('img') })
   const count = await cards.count()
 
   const seen = new Set<string>()
@@ -48,15 +51,36 @@ async function scrape(keyword: string) {
 
   for (let i = 0; i < Math.min(count, 40); i++) {
     const card = cards.nth(i)
-    const advertiser = (await card.locator('a[role="link"]').first().innerText().catch(()=>null)) || 'Unknown'
-    const adCopy = await card.locator('div[dir="auto"]').first().innerText().catch(()=>null)
-    const img = await card.locator('img').first().getAttribute('src').catch(()=>null)
+
+    // Try to infer advertiser from closest link or strong text
+    let advertiser = await card.locator('a[role="link"]:visible').first().innerText().catch(()=>null)
+    if (!advertiser || advertiser.length > 80) {
+      advertiser = await card.locator('strong:visible, span[dir="auto"]:visible').first().innerText().catch(()=>null)
+    }
+    advertiser = advertiser?.trim() || 'Unknown'
+
+    // Extract a short ad copy snippet
+    let adCopy = await card.locator('div[dir="auto"]:visible').first().innerText().catch(()=>null)
+    if (!adCopy) {
+      const txt = await card.textContent().catch(()=>null)
+      adCopy = txt?.replace(/\s+/g, ' ').trim().slice(0, 400) || null
+    }
+
+    // Screenshot the card as a small thumbnail
+    let dataUrl: string | null = null
+    try {
+      const buf = await card.screenshot({ type: 'png' })
+      dataUrl = `data:image/png;base64,${Buffer.from(buf).toString('base64')}`
+    } catch {
+      // fallback: first image src
+      dataUrl = await card.locator('img').first().getAttribute('src').catch(()=>null)
+    }
 
     const key = `${(advertiser||'').toLowerCase()}::${(adCopy||'').slice(0,200).toLowerCase()}`
     if (seen.has(key)) continue
     seen.add(key)
 
-    records.push({ advertiser, ad_copy: adCopy, ad_creative_url: img })
+    records.push({ advertiser, ad_copy: adCopy, ad_creative_url: dataUrl })
   }
 
   await browser.close()
